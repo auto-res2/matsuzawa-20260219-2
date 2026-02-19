@@ -19,3 +19,15 @@ dependencies = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+# [VALIDATOR FIX - Attempt 1]
+# [PROBLEM]: hatchling cannot find package directory (airas_experiments)
+# [CAUSE]: No directory matches the project name; source code is in src/ directory but hatchling doesn't know where to look
+# [FIX]: Added [tool.hatch.build.targets.wheel] section to specify packages = ["src"] so hatchling knows to ship the src directory
+#
+# [OLD CODE]:
+# (nothing - missing configuration)
+#
+# [NEW CODE]:
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
