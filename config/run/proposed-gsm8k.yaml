@@ -1,0 +1,46 @@
+# Run config for DiVA-LtM (Diverse-Verified Adaptive LtM)
+# Proposed method: LtM with cognitive operator diversity, verification, and adaptive k
+
+run_id: proposed-gsm8k
+
+method:
+  type: diva-ltm
+  name: "DiVA-LtM"
+  description: "Diverse-Verified Adaptive LtM with operator prompts, verification, and adaptive compute"
+  # DiVA-LtM parameters
+  decomposition_temperature: 0.0  # deterministic decomposition
+  step_temperature: 0.7  # sampling for step answers
+  k_min: 3  # minimum samples per step
+  k_max: 7  # maximum samples when high disagreement
+  max_steps: 6  # max decomposition steps
+  # Cognitive operator prompts for diversity
+  cognitive_operators:
+    - "forward_algebra"  # solve step-by-step algebraically
+    - "backward_check"   # hypothesize answer and verify backward
+    - "estimation"       # estimate bounds/sanity check
+    - "unit_constraint"  # check units and constraints
+  # Verification settings
+  verification_temperature: 0.0  # deterministic verification
+  verification_threshold: 0.5  # VALID threshold
+  max_verify_tokens: 120
+  # Adaptive gating
+  disagreement_threshold: 0.6  # entropy threshold to increase k
+  voting_strategy: "canonical_majority"  # vote over VALID canonical answers
+
+model:
+  name: "Qwen/Qwen2.5-3B-Instruct"
+  max_length: 2048
+  device: "cuda"
+  cache_dir: ".cache"
+
+dataset:
+  name: "gsm8k"
+  split: "test"
+  n_samples: 200  # subset for efficiency
+  seed: 42
+
+inference:
+  batch_size: 1  # process one at a time due to sequential nature
+  max_decomp_tokens: 220
+  max_step_tokens: 180
+  max_final_tokens: 100

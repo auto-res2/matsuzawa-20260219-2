@@ -1,0 +1,33 @@
+# Run config for LCV-LtM (Local Consistency Voting LtM)
+# Comparative baseline 2: LtM with fixed k=5 majority voting per step
+
+run_id: comparative-2-gsm8k
+
+method:
+  type: lcv-ltm
+  name: "LCV-LtM"
+  description: "LtM with fixed k=5 samples and naive majority voting per step"
+  # LCV-LtM parameters
+  decomposition_temperature: 0.0  # deterministic decomposition
+  step_temperature: 0.7  # sampling for step answers
+  k_samples: 5  # fixed 5 samples per step
+  max_steps: 6  # max decomposition steps
+  voting_strategy: "canonical_majority"  # naive string canonicalization + majority
+
+model:
+  name: "Qwen/Qwen2.5-3B-Instruct"
+  max_length: 2048
+  device: "cuda"
+  cache_dir: ".cache"
+
+dataset:
+  name: "gsm8k"
+  split: "test"
+  n_samples: 200  # subset for efficiency
+  seed: 42
+
+inference:
+  batch_size: 1  # process one at a time due to sequential nature
+  max_decomp_tokens: 220
+  max_step_tokens: 180
+  max_final_tokens: 100

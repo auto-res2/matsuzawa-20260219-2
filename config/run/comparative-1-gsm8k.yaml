@@ -1,0 +1,32 @@
+# Run config for baseline LtM (Least-to-Most prompting)
+# Comparative baseline 1: Standard LtM with single sample per step
+
+run_id: comparative-1-gsm8k
+
+method:
+  type: ltm
+  name: "Standard LtM"
+  description: "Baseline Least-to-Most prompting with single sample per step"
+  # LtM parameters
+  decomposition_temperature: 0.0  # deterministic decomposition
+  step_temperature: 0.7  # sampling for step answers
+  k_samples: 1  # single sample per step (baseline)
+  max_steps: 6  # max decomposition steps
+
+model:
+  name: "Qwen/Qwen2.5-3B-Instruct"
+  max_length: 2048
+  device: "cuda"
+  cache_dir: ".cache"
+
+dataset:
+  name: "gsm8k"
+  split: "test"
+  n_samples: 200  # subset for efficiency
+  seed: 42
+
+inference:
+  batch_size: 1  # process one at a time due to sequential nature
+  max_decomp_tokens: 220
+  max_step_tokens: 180
+  max_final_tokens: 100
