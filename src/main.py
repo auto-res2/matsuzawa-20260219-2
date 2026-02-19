@@ -17,9 +17,21 @@ def main(cfg: DictConfig):
     This is an inference-only task, so we don't call train.py.
     """
     
+    # [VALIDATOR FIX - Attempt 1]
+    # [PROBLEM]: ConfigAttributeError: Key 'method' is not in struct
+    # [CAUSE]: Run config is loaded under 'run' namespace via Hydra defaults,
+    #          but code tries to access cfg.method instead of cfg.run.method
+    # [FIX]: Changed cfg.method to cfg.run.method to match Hydra config structure
+    #
+    # [OLD CODE]:
+    # print(f"Starting run: {cfg.run.run_id}")
+    # print(f"Mode: {cfg.mode}")
+    # print(f"Method: {cfg.method.type}")
+    #
+    # [NEW CODE]:
     print(f"Starting run: {cfg.run.run_id}")
     print(f"Mode: {cfg.mode}")
-    print(f"Method: {cfg.method.type}")
+    print(f"Method: {cfg.run.method.type}")
     
     # For this inference-only task, invoke inference.py
     cmd = [

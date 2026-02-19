@@ -2,6 +2,21 @@
 Inference script for LtM prompt tuning experiments.
 Implements LtM, LCV-LtM, and DiVA-LtM methods.
 """
+# [VALIDATOR FIX - Attempt 1]
+# [PROBLEM]: ConfigAttributeError: Key 'method' is not in struct
+# [CAUSE]: Run config is loaded under 'run' namespace via Hydra defaults,
+#          but code tried to access cfg.method, cfg.model, cfg.dataset, cfg.inference
+#          instead of cfg.run.method, cfg.run.model, etc.
+# [FIX]: Changed all cfg.method -> cfg.run.method, cfg.model -> cfg.run.model,
+#        cfg.dataset -> cfg.run.dataset, cfg.inference -> cfg.run.inference
+#        to match the actual Hydra config structure
+#
+# [OLD CODE]:
+# cfg.method.*, cfg.model.*, cfg.dataset.*, cfg.inference.*
+#
+# [NEW CODE]:
+# cfg.run.method.*, cfg.run.model.*, cfg.run.dataset.*, cfg.run.inference.*
+
 import os
 import sys
 import json
@@ -61,8 +76,8 @@ def run_ltm(
     # Decompose
     subquestions = decompose_question(
         model, question,
-        cfg.inference.max_decomp_tokens,
-        cfg.method.max_steps
+        cfg.run.inference.max_decomp_tokens,
+        cfg.run.method.max_steps
     )
     
     # Solve steps sequentially
@@ -71,8 +86,8 @@ def run_ltm(
         prompt = build_step_prompt(question, subquestions, i, subanswers)
         answer = model.generate(
             prompt,
-            temperature=cfg.method.step_temperature,
-            max_new_tokens=cfg.inference.max_step_tokens
+            temperature=cfg.run.method.step_temperature,
+            max_new_tokens=cfg.run.inference.max_step_tokens
         )
         subanswers.append(answer)
     
@@ -81,7 +96,7 @@ def run_ltm(
     final_output = model.generate(
         final_prompt,
         temperature=0.0,
-        max_new_tokens=cfg.inference.max_final_tokens,
+        max_new_tokens=cfg.run.inference.max_final_tokens,
         do_sample=False
     )
     
@@ -104,13 +119,13 @@ def run_lcv_ltm(
 ) -> Dict[str, Any]:
     """Run LCV-LtM (fixed k samples with majority voting per step)."""
     question = example["question"]
-    k = cfg.method.k_samples
+    k = cfg.run.method.k_samples
     
     # Decompose
     subquestions = decompose_question(
         model, question,
-        cfg.inference.max_decomp_tokens,
-        cfg.method.max_steps
+        cfg.run.inference.max_decomp_tokens,
+        cfg.run.method.max_steps
     )
     
     # Solve steps sequentially with voting
@@ -124,8 +139,8 @@ def run_lcv_ltm(
             prompt = build_step_prompt(question, subquestions, i, subanswers)
             answer = model.generate(
                 prompt,
-                temperature=cfg.method.step_temperature,
-                max_new_tokens=cfg.inference.max_step_tokens
+                temperature=cfg.run.method.step_temperature,
+                max_new_tokens=cfg.run.inference.max_step_tokens
             )
             candidates.append(answer)
         
@@ -149,7 +164,7 @@ def run_lcv_ltm(
     final_output = model.generate(
         final_prompt,
         temperature=0.0,
-        max_new_tokens=cfg.inference.max_final_tokens,
+        max_new_tokens=cfg.run.inference.max_final_tokens,
         do_sample=False
     )
     
@@ -194,16 +209,16 @@ def run_diva_ltm(
 ) -> Dict[str, Any]:
     """Run DiVA-LtM (diverse-verified adaptive)."""
     question = example["question"]
-    k_min = cfg.method.k_min
-    k_max = cfg.method.k_max
-    operators = cfg.method.cognitive_operators
-    disagreement_threshold = cfg.method.disagreement_threshold
+    k_min = cfg.run.method.k_min
+    k_max = cfg.run.method.k_max
+    operators = cfg.run.method.cognitive_operators
+    disagreement_threshold = cfg.run.method.disagreement_threshold
     
     # Decompose
     subquestions = decompose_question(
         model, question,
-        cfg.inference.max_decomp_tokens,
-        cfg.method.max_steps
+        cfg.run.inference.max_decomp_tokens,
+        cfg.run.method.max_steps
     )
     
     # Solve steps sequentially with adaptive k
@@ -234,8 +249,8 @@ def run_diva_ltm(
                     prompt = build_step_prompt(question, subquestions, i, subanswers, operator=op)
                     answer = model.generate(
                         prompt,
-                        temperature=cfg.method.step_temperature,
-                        max_new_tokens=cfg.inference.max_step_tokens
+                        temperature=cfg.run.method.step_temperature,
+                        max_new_tokens=cfg.run.inference.max_step_tokens
                     )
                     candidates.append((answer, op))
                 if len(candidates) >= k_current:
@@ -248,8 +263,8 @@ def run_diva_ltm(
                 )
                 verify_output = model.generate(
                     verify_prompt,
-                    temperature=cfg.method.verification_temperature,
-                    max_new_tokens=cfg.method.max_verify_tokens,
+                    temperature=cfg.run.method.verification_temperature,
+                    max_new_tokens=cfg.run.method.max_verify_tokens,
                     do_sample=False
                 )
                 
@@ -299,7 +314,7 @@ def run_diva_ltm(
     final_output = model.generate(
         final_prompt,
         temperature=0.0,
-        max_new_tokens=cfg.inference.max_final_tokens,
+        max_new_tokens=cfg.run.inference.max_final_tokens,
         do_sample=False
     )
     
@@ -325,7 +340,7 @@ def main(cfg: DictConfig):
     # Apply mode overrides for sanity_check
     if cfg.mode == "sanity_check":
         # Reduce dataset size
-        cfg.dataset.n_samples = 10
+        cfg.run.dataset.n_samples = 10
         # Keep wandb online but use separate project
         if not OmegaConf.is_missing(cfg.wandb, "project"):
             cfg.wandb.project = f"{cfg.wandb.project}-sanity"
@@ -344,18 +359,18 @@ def main(cfg: DictConfig):
     
     # Load model
     model = LtMModel(
-        model_name=cfg.model.name,
-        device=cfg.model.device,
-        max_length=cfg.model.max_length,
-        cache_dir=cfg.model.cache_dir
+        model_name=cfg.run.model.name,
+        device=cfg.run.model.device,
+        max_length=cfg.run.model.max_length,
+        cache_dir=cfg.run.model.cache_dir
     )
     
     # Load dataset
     examples = load_gsm8k(
-        split=cfg.dataset.split,
-        n_samples=cfg.dataset.n_samples,
-        seed=cfg.dataset.seed,
-        cache_dir=cfg.model.cache_dir
+        split=cfg.run.dataset.split,
+        n_samples=cfg.run.dataset.n_samples,
+        seed=cfg.run.dataset.seed,
+        cache_dir=cfg.run.model.cache_dir
     )
     
     print(f"Running {cfg.run.run_id} on {len(examples)} examples")
@@ -365,7 +380,7 @@ def main(cfg: DictConfig):
     correct = 0
     total = 0
     
-    method_type = cfg.method.type
+    method_type = cfg.run.method.type
     
     for idx, example in enumerate(examples):
         print(f"Processing example {idx+1}/{len(examples)}")
